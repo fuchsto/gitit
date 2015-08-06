@@ -8,9 +8,12 @@
 
 module Subst (plugin) where
 
-import "MonadCatchIO-mtl" Control.Monad.CatchIO (try)
+-- import "MonadCatchIO-mtl" Control.Monad.CatchIO (try)
+import Control.Monad.CatchIO
 import Data.FileStore (FileStoreError, retrieve)
+import Data.Either
 import Text.Pandoc (def, readMarkdown)
+import Text.Pandoc.Error
 import Network.Gitit.ContentTransformer (inlinesToString)
 import Network.Gitit.Interface
 import Network.Gitit.Framework (filestoreFromConfig)
@@ -29,7 +32,9 @@ substituteIntoBlock ((Para [Link ref ("!subst", _)]):xs) =
                             alt = "'" ++ target ++ "' doesn't exist. Click here to create it."
                             lnk = Para [Link [txt] (target,alt)]
                         in  (lnk :) `fmap` substituteIntoBlock xs
-          Right a    -> let (Pandoc _ content) = readMarkdown def a
-                        in  (content ++) `fmap` substituteIntoBlock xs
+          Right a    -> case readMarkdown def a :: Either PandocError Pandoc of
+                          Right p  -> let (Pandoc _ content) = p
+                                      in  (content ++) `fmap` substituteIntoBlock xs
 substituteIntoBlock (x:xs) = (x:) `fmap` substituteIntoBlock xs
 substituteIntoBlock [] = return []
+
